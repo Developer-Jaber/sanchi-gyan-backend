@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int           @id @default(autoincrement())
+  email         String        @unique
+  password      String
+  name          String?
+  roleId        Int
+  role          Role          @relation(fields: [roleId], references: [id])
+  subscriptions Subscription[]
+  progress      ProgressReport[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([email])  // For faster queries on email (e.g., login)
+}
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // e.g., 'Student', 'Teacher', 'Admin'
+  users User[]
+}
+
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  planId    Int
+  startDate DateTime
+  endDate   DateTime?
+  status    String   // 'active', 'trial', 'expired'
+  user      User     @relation(fields: [userId], references: [id])
+  plan      Plan     @relation(fields: [planId], references: [id])
+}
+
+model Plan {
+  id            Int            @id @default(autoincrement())
+  name          String         // 'Free Trial', 'Basic', 'Premium', 'Pro'
+  price         Float
+  durationDays  Int
+  features      String[]       // e.g., ['access to basic videos', 'premium notes']
+  subscriptions Subscription[]
+  videoAccesses  PlanVideoAccess[]
+  noteAccesses   PlanNoteAccess[] // Many-to-many with content
+}
+
+model Class {
+  id       Int       @id @default(autoincrement())
+  name     String    // e.g., 'Class 2'
+  subjects Subject[]
+}
+
+model Subject {
+  id      Int     @id @default(autoincrement())
+  name    String  // e.g., 'Math'
+  classId Int
+  class   Class   @relation(fields: [classId], references: [id])
+  videos  Video[]
+  notes   Note[]
+  liveClasses LiveClass[]
+}
+
+model Video {
+  id          Int              @id @default(autoincrement())
+  title       String
+  url         String           // S3/Supabase URL
+  subjectId   Int
+  subject     Subject          @relation(fields: [subjectId], references: [id])
+  progress    ProgressReport[]
+  planAccesses  PlanVideoAccess[] // Many-to-many with plans
+}
+
+model Note {
+  id          Int              @id @default(autoincrement())
+  title       String
+  url         String           // S3/Supabase URL
+  subjectId   Int
+  subject     Subject          @relation(fields: [subjectId], references: [id])
+  planAccesses  PlanNoteAccess[] // Many-to-many with plans
+}
+
+model ProgressReport {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  videoId   Int?
+  completed Boolean @default(false)
+  watchPct  Float?  // 0-100 for videos
+  user      User    @relation(fields: [userId], references: [id])
+  video     Video?  @relation(fields: [videoId], references: [id])
+}
+
+model LiveClass {
+  id        Int      @id @default(autoincrement())
+  title     String
+  scheduled DateTime
+  url       String   // Streaming link
+  subjectId Int
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+}
+
+// model ContentAccess {
+//   planId  Int
+//   videoId Int?
+//   noteId  Int?
+//   plan    Plan    @relation(fields: [planId], references: [id])
+//   video   Video?  @relation(fields: [videoId], references: [id])
+//   note    Note?   @relation(fields: [noteId], references: [id])
+
+//   @@id([planId, videoId, noteId])  // Composite primary key for many-to-many
+// }
+
+model PlanVideoAccess {
+  planId  Int
+  videoId Int
+  plan    Plan   @relation(fields: [planId], references: [id])
+  video   Video  @relation(fields: [videoId], references: [id])
+
+  @@id([planId, videoId])
+}
+
+model PlanNoteAccess {
+  planId Int
+  noteId Int
+  plan   Plan  @relation(fields: [planId], references: [id])
+  note   Note @relation(fields: [noteId], references: [id])
+
+  @@id([planId, noteId])
+}
