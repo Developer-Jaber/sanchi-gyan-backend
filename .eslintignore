@@ -1,0 +1,8 @@
+# .eslintignore
+generated/
+prisma/generated/
+node_modules/
+dist/
+*.js
+*.d.ts
+test/
